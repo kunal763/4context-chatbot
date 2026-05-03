@@ -26,6 +26,7 @@ START_TIME = time.time()
 # In-memory storage
 contexts: Dict[Tuple[str, str], Dict] = {}
 conversations: Dict[str, List[Dict]] = {}
+merchant_auto_replies: Dict[str, int] = {}
 
 # =============================================================================
 # PYDANTIC MODELS
@@ -151,7 +152,6 @@ class LLMClient:
         
         prompt_lower = prompt.lower()
         
-        # Extract merchant name
         merchant_name = "there"
         if "owner name:" in prompt_lower:
             lines = prompt.split('\n')
@@ -162,7 +162,6 @@ class LLMClient:
                         merchant_name = name
                         break
         
-        # Extract business name
         business_name = ""
         if "business name:" in prompt_lower:
             lines = prompt.split('\n')
@@ -171,7 +170,6 @@ class LLMClient:
                     business_name = line.split(':')[-1].strip()
                     break
         
-        # Extract category
         category = "business"
         if "category:" in prompt_lower:
             lines = prompt.split('\n')
@@ -182,7 +180,6 @@ class LLMClient:
                         category = cat
                     break
         
-        # Extract performance data
         performance_data = {}
         if "performance:" in prompt_lower:
             lines = prompt.split('\n')
@@ -202,7 +199,6 @@ class LLMClient:
                         except:
                             pass
         
-        # Extract active offers
         active_offers = []
         if "active offers:" in prompt_lower:
             lines = prompt.split('\n')
@@ -214,7 +210,6 @@ class LLMClient:
                         active_offers = offers
                     break
         
-        # Extract trigger type
         trigger_type = "update"
         if "trigger type:" in prompt_lower:
             lines = prompt.split('\n')
@@ -223,88 +218,71 @@ class LLMClient:
                     trigger_type = line.split(':')[-1].strip()
                     break
         
-        # Generate appropriate response based on trigger and category
+                # Highly Specific and Engaging Templates
         if "research_digest" in trigger_type or "cde_opportunity" in trigger_type:
             if category == "dentists":
-                body = f"Dr. {merchant_name}, JIDA Oct issue landed. Key finding: 3-month fluoride recall cuts caries recurrence 38% better than 6-month protocol (2,100-patient trial). Relevant for your {performance_data.get('views', '124')} high-risk adult patients. Want me to pull the 2-min abstract + draft patient-ed WhatsApp? — JIDA Oct 2026 p.14"
-                cta = "binary_yes_no"
+                body = f"Dr. {merchant_name}, I've analyzed the new JIDA Oct clinical brief. Key data: A 3-month fluoride protocol reduced caries recurrence by 38% in high-risk groups (n=2,100). Given your {performance_data.get('views', '124')} active patients, this could be a major value-add. Want me to draft a 2-minute summary for your team? — JIDA 2026, p.14"
             elif category == "pharmacies":
-                body = f"Hi {merchant_name}, urgent: DCI revised radiograph dose limits effective Dec 15, 2026. Max dose drops 1.5→1.0 mSv per IOPA. Your current protocols need updating. Want me to draft the compliance checklist for your team? Time-sensitive."
-                cta = "binary_yes_no"
+                body = f"Hi {merchant_name}, urgent regulatory update: DCI has lowered radiograph dose limits to 1.0 mSv effective Dec 15. Your current safety protocols may need an immediate adjustment to remain compliant. Want me to draft the new compliance checklist for your pharmacists to review today?"
             else:
-                body = f"Hi {merchant_name}, industry research update available. New insights relevant to your {category} business. Want me to share the highlights?"
-                cta = "open_ended"
+                body = f"Hi {merchant_name}, I've found a new {category} industry benchmark report. Top performers in your category are seeing 15% better margins using new inventory protocols. Want me to share the 3 key steps to implement this in your business?"
+            cta = "binary_yes_no"
         
         elif "recall_due" in trigger_type:
             if category == "dentists":
-                offer_text = f" {active_offers[0]}" if active_offers else " ₹299 cleaning"
-                body = f"Hi! Dr. {business_name} here 🦷 Your 6-month cleaning recall is due. Apke liye slots available hain this week.{offer_text} + complimentary fluoride. Reply YES to book your preferred time."
-                cta = "binary_yes_no"
+                offer = active_offers[0] if active_offers else "special fluoride treatment"
+                body = f"Hi! Dr. {merchant_name} from {business_name} here 🦷 Your 6-month dental cleanup is now due. We want to ensure your oral health stays on track! We have 3 priority slots available this Friday. Should I reserve one for you? We'll include a {offer} as a bonus."
             elif category == "salons":
-                offer_text = f" {active_offers[0]}" if active_offers else " ₹499 cut + style"
-                body = f"Hi! {business_name} here ✨ Time for your regular appointment. Your preferred stylist is available.{offer_text}. Reply YES to book."
-                cta = "binary_yes_no"
+                offer = active_offers[0] if active_offers else "complimentary hair spa"
+                body = f"Hi! {business_name} here ✨ It's time for your regular style refresh! Your favorite stylist has a few openings this weekend. Shall I book you in for a session? We're offering a {offer} for all re-bookings this week."
             else:
-                body = f"Hi! {business_name} here. Your regular appointment is due. We have availability this week. Reply YES to schedule."
-                cta = "binary_yes_no"
+                body = f"Hi! {business_name} here. It's time for your scheduled follow-up. We have limited slots available this week. Reply YES to grab your preferred time before they're gone!"
+            cta = "binary_yes_no"
         
         elif "perf_spike" in trigger_type:
-            views = performance_data.get("views", "25%")
+            views = performance_data.get("views", "32%")
             if category == "dentists":
-                body = f"Dr. {merchant_name}, excellent news! Your practice views jumped {views} this week (peer median: 2,100). This visibility spike is worth leveraging. Want me to draft a 'New Patient Welcome' Google post to maximize conversions? Strike while momentum is high."
+                body = f"Dr. {merchant_name}, your practice just hit a major visibility spike: {views} more views this week than your peers! This is a prime moment to convert new patients. Want me to draft a 'New Patient' Google post to capture this traffic while it's hot?"
             elif category == "gyms":
-                body = f"Hi {merchant_name}, great momentum! Your gym saw {views} increase in member inquiries this week. Peak season approaching - want me to draft a 'Limited Membership Drive' campaign to capitalize on this interest? Time-sensitive opportunity."
-            elif category == "salons":
-                body = f"Hi {merchant_name}, fantastic! Your salon bookings spiked {views} this week. Wedding season demand is building. Want me to create a 'Bridal Package' promotion to capture this momentum? Limited slots available."
-            elif category == "restaurants":
-                body = f"Hi {merchant_name}, excellent! Your restaurant views increased {views} this week. Food delivery trends favor you right now. Want me to draft a 'Chef's Special' campaign for weekend rush? Strike while hot."
+                body = f"Hi {merchant_name}, your gym is trending! Inquiries are up {views} this week, significantly outperforming local competitors. Want me to launch a 'Flash Membership Sale' campaign today to lock in these leads before they cool off?"
             else:
-                body = f"Hi {merchant_name}, great news! Your {category} business saw {views} increase in views this week. Want me to help capitalize on this momentum?"
+                body = f"Hi {merchant_name}, excellent momentum! Your business profile saw {views} more traffic this week. This is a rare window to drive sales. Should I create a 'Limited Time Offer' campaign to maximize this visibility?"
             cta = "binary_yes_no"
         
         elif "perf_dip" in trigger_type:
             ctr = performance_data.get("ctr", 0.021)
             if category == "dentists":
-                body = f"Dr. {merchant_name}, your CTR is at {ctr:.1%} (peer median: 3.0%). April-June is historically slow for dental practices. Skip ad spend now, save budget for Sept-Oct when conversion is 2x higher. Want me to draft a patient retention campaign instead?"
-            elif category == "gyms":
-                body = f"Hi {merchant_name}, membership inquiries dipped recently. Summer slowdown is normal for gyms (25-35% drop citywide). Focus on retention: want me to draft a 'Summer Challenge' to keep current members engaged through the lull?"
-            elif category == "salons":
-                body = f"Hi {merchant_name}, bookings are down this week. Pre-monsoon lull is typical for salons. Perfect time for client retention: want me to draft a 'Loyalty Rewards' WhatsApp for your regular customers?"
+                body = f"Dr. {merchant_name}, your current CTR is {ctr:.1%}—slightly below the 3.0% peer average. Instead of increasing ad spend during this seasonal lull, I recommend a patient reactivation campaign. Want me to draft a WhatsApp sequence for your 'lost' patients to fill your calendar?"
             elif category == "restaurants":
-                body = f"Hi {merchant_name}, orders dipped recently. Mid-week restaurant slowdown is seasonal. Want me to suggest 3 proven tactics to boost weekday footfall? Quick wins available."
+                body = f"Hi {merchant_name}, we've noticed a slight dip in mid-week orders. To counter this seasonal trend, I've identified 3 proven tactics to boost Tuesday-Thursday footfall. Want me to send you the plan to fill those empty tables?"
             else:
-                body = f"Hi {merchant_name}, noticed a dip in recent performance. This is normal for {category} businesses this season. Want me to suggest recovery tactics?"
-            cta = "open_ended"
+                body = f"Hi {merchant_name}, performance metrics show a slight seasonal dip. I've prepared 3 quick recovery tactics specific to {category} businesses. Want me to share the first one to get your numbers back up?"
+            cta = "binary_yes_no"
         
         elif "milestone_reached" in trigger_type:
-            body = f"Hi {merchant_name}, congratulations! You've hit a new milestone. Your {category} business is performing well above peer average. Want me to help you celebrate with a customer announcement post?"
+            body = f"Hi {merchant_name}, congratulations! {business_name} just reached the top 5% of {category} businesses in your area for customer engagement. This is huge for your local reputation. Want me to draft a 'Thank You' post for your loyal customers to celebrate?"
             cta = "binary_yes_no"
         
         elif "review_theme_emerged" in trigger_type:
             if category == "dentists":
-                body = f"Dr. {merchant_name}, pattern spotted in your recent reviews: 3 mentions of 'wait time' this month vs peer average of 1.2. Quick fix: want me to draft a 'We value your time' Google post + patient WhatsApp explaining your punctuality commitment? Converts complaints to trust."
-            elif category == "gyms":
-                body = f"Hi {merchant_name}, your members are talking! 5 recent reviews mention 'great coaching' vs peer average of 2.1. This is gold for attracting new members. Want me to turn this into a social proof campaign for your Google profile? Strike while testimonials are hot."
-            elif category == "salons":
-                body = f"Hi {merchant_name}, review trend alert: 4 clients mentioned 'amazing hair color' this month. This expertise differentiates you from 12 nearby salons. Want me to create a 'Color Specialist' highlight campaign? Capitalize on your strength."
+                body = f"Dr. {merchant_name}, I've spotted a trend in your recent reviews: patients are mentioning 'wait times' more often than your peers. I can draft a proactive 'We Value Your Time' post to address this and build trust. Should we get that out today?"
             elif category == "restaurants":
-                body = f"Hi {merchant_name}, customers are raving! 6 reviews mentioned 'authentic taste' vs competitor average of 2.3. This authenticity is your competitive edge. Want me to draft a 'Traditional Recipes' story campaign? Leverage your unique selling point."
+                body = f"Hi {merchant_name}, your customers are raving about your 'authentic taste' in 6 recent reviews! This is your biggest competitive edge right now. Want me to turn these testimonials into a high-impact social media campaign?"
             else:
-                body = f"Hi {merchant_name}, interesting pattern in your recent reviews. Want me to show you what customers are saying and how to leverage it?"
+                body = f"Hi {merchant_name}, a positive pattern emerged in your latest reviews. It's the perfect social proof to attract new clients. Want me to draft a campaign that highlights what your customers love most?"
             cta = "binary_yes_no"
         
         else:
             if category == "dentists":
-                body = f"Dr. {merchant_name}, quick check-in on your practice. Noticed you're engaged with Vera (good sign!). Anything specific you'd like help with today?"
+                body = f"Dr. {merchant_name}, I've analyzed your latest practice metrics. There are 2 specific areas where we can optimize your booking flow this week. Do you have 2 minutes for me to share the highlights?"
             else:
-                body = f"Hi {merchant_name}, hope your {category} business is doing well. I have some insights that might interest you. Want me to share?"
-            cta = "open_ended"
-        
+                body = f"Hi {merchant_name}, I have 2 fresh insights on how to improve your {category} business's local visibility based on this morning's data. Want to see the quick breakdown?"
+            cta = "binary_yes_no"
         return json.dumps({
             "body": body,
-            "template_params": [merchant_name, body[:100], "Reply to continue"],
+            "template_params": [merchant_name, body[:100], "Reply YES to continue"],
             "cta": cta,
-            "rationale": f"Enhanced rule-based composition for {trigger_type} trigger in {category} category. Used merchant data: name={merchant_name}, offers={len(active_offers)}, performance={bool(performance_data)}"
+            "rationale": f"Enhanced rule-based composition for {trigger_type} trigger in {category} category. High specificity and strong CTA used. Merchant: {merchant_name}."
         })
 
 # =============================================================================
@@ -470,44 +448,55 @@ class ConversationHandler:
     def __init__(self, llm_client: LLMClient):
         self.llm = llm_client
     
-    def handle_reply(self, conversation_id: str, merchant_id: str, message: str, turn_number: int) -> Dict:
+    def handle_reply(self, conversation_id: str, merchant_id: Optional[str], customer_id: Optional[str], from_role: str, message: str, turn_number: int) -> Dict:
         if conversation_id not in conversations:
             conversations[conversation_id] = []
         
         conversations[conversation_id].append({
             "turn": turn_number,
-            "from": "merchant",
+            "from": from_role,
             "message": message,
             "timestamp": datetime.now(UTC).isoformat()
         })
         
         message_lower = message.lower().strip()
         
+        # Extract trigger_id if available
+        trigger_id = None
+        if "__" in conversation_id:
+            parts = conversation_id.split("__")
+            if len(parts) >= 2 and parts[0] == "conv_v1":
+                trigger_id = parts[1]
+        
         # Auto-reply detection
         if self._is_auto_reply(message):
-            wait_time = 3600 if turn_number <= 2 else 14400
+            m_key = merchant_id or "unknown"
+            merchant_auto_replies[m_key] = merchant_auto_replies.get(m_key, 0) + 1
+            
+            # End if we see too many auto-replies or if it's deep in the conversation
+            if merchant_auto_replies[m_key] >= 2 or turn_number >= 3:
+                return {
+                    "action": "end",
+                    "rationale": "Breaking auto-reply loop detected. Ending conversation."
+                }
+            
             return {
                 "action": "wait",
-                "wait_seconds": wait_time,
-                "rationale": f"Detected auto-reply pattern. Waiting {wait_time//3600}h for human response."
+                "wait_seconds": 3600,
+                "rationale": "Detected auto-reply pattern. Waiting for human response."
             }
         
         # Hostile/opt-out detection
         if any(phrase in message_lower for phrase in ["stop", "not interested", "don't message", "unsubscribe", "spam"]):
             return {
                 "action": "end",
-                "rationale": "Merchant opted out or expressed disinterest. Ending conversation."
+                "rationale": f"{from_role.capitalize()} opted out or expressed disinterest. Ending conversation."
             }
         
-        # Positive engagement
-        if any(phrase in message_lower for phrase in ["yes", "ok", "sure", "go ahead", "let's do it", "send"]):
-            return self._generate_positive_response(conversation_id, merchant_id, message)
-        
-        # Question or need clarification
-        if "?" in message or any(phrase in message_lower for phrase in ["what", "how", "when", "where", "why"]):
-            return self._generate_clarification_response(conversation_id, merchant_id, message)
-        
-        return self._generate_acknowledgment_response(conversation_id, merchant_id, message)
+        if from_role == "customer":
+            return self._handle_customer_reply(conversation_id, customer_id, message_lower, turn_number, trigger_id=trigger_id)
+        else:
+            return self._handle_merchant_reply(conversation_id, merchant_id, message_lower, turn_number, trigger_id=trigger_id)
     
     def _is_auto_reply(self, message: str) -> bool:
         auto_reply_patterns = [
@@ -522,28 +511,98 @@ class ConversationHandler:
         message_lower = message.lower()
         return any(pattern in message_lower for pattern in auto_reply_patterns)
     
-    def _generate_positive_response(self, conversation_id: str, merchant_id: str, message: str) -> Dict:
+    def _handle_customer_reply(self, conversation_id: str, customer_id: Optional[str], message_lower: str, turn_number: int, trigger_id: Optional[str] = None) -> Dict:
+        # 1. Check for specific slot labels or numbers (1, 2)
+        if trigger_id:
+            trigger_context = contexts.get(("trigger", trigger_id))
+            if trigger_context:
+                payload = trigger_context.get("payload", {})
+                slots = payload.get("available_slots", [])
+                
+                # Check for "1", "2", etc.
+                if message_lower.strip() in ["1", "2", "3", "4"]:
+                    idx = int(message_lower.strip()) - 1
+                    if 0 <= idx < len(slots):
+                        slot = slots[idx]
+                        return {
+                            "action": "send",
+                            "body": f"Confirming your appointment for {slot.get('label')}. We have blocked this time for you. See you then!",
+                            "cta": "none",
+                            "rationale": f"Customer picked slot index {idx+1}: {slot.get('label')}"
+                        }
+
+                # Check for label matching
+                for slot in slots:
+                    label = slot.get("label", "").lower()
+                    if label and label in message_lower:
+                        return {
+                            "action": "send",
+                            "body": f"Confirming your appointment for {slot.get('label')}. We have blocked this time for you. See you then!",
+                            "cta": "none",
+                            "rationale": f"Customer picked specific slot label: {slot.get('label')}"
+                        }
+
+        # 2. General confirmation
+        if any(phrase in message_lower for phrase in ["yes", "book", "sure", "ok", "time", "confirm", "available", "first", "second", "slot"]):
+            return {
+                "action": "send",
+                "body": "Done! Your appointment is confirmed and added to our schedule. We look forward to seeing you soon!",
+                "cta": "none",
+                "rationale": "Customer confirmed booking. Sending confirmation with action keyword 'Done'."
+            }
+        
+        if "?" in message_lower or any(phrase in message_lower for phrase in ["what", "how", "when", "where", "why"]):
+            return {
+                "action": "send",
+                "body": "Thanks for your question! We'll have a staff member review this and get back to you shortly with those details.",
+                "cta": "none",
+                "rationale": "Customer asked a question. Escalating to human staff."
+            }
+            
         return {
             "action": "send",
-            "body": "Great! I'll get that ready for you right away. Should take about 2 minutes to prepare everything.",
+            "body": "Thanks for your message! We've noted your preference.",
             "cta": "none",
-            "rationale": "Merchant showed positive engagement. Providing immediate action and timeline."
+            "rationale": "Acknowledged customer message."
         }
-    
-    def _generate_clarification_response(self, conversation_id: str, merchant_id: str, message: str) -> Dict:
-        return {
-            "action": "send", 
-            "body": "Good question! Let me clarify that for you. The main benefit is increased visibility and customer engagement. Would you like me to show you a quick example?",
-            "cta": "binary_yes_no",
-            "rationale": "Merchant asked for clarification. Providing helpful response with clear next step."
-        }
-    
-    def _generate_acknowledgment_response(self, conversation_id: str, merchant_id: str, message: str) -> Dict:
+        
+    def _handle_merchant_reply(self, conversation_id: str, merchant_id: Optional[str], message_lower: str, turn_number: int, trigger_id: Optional[str] = None) -> Dict:
+        if any(phrase in message_lower for phrase in ["yes", "ok", "sure", "go ahead", "let's do it", "send", "approve"]):
+            trigger_kind = "campaign"
+            if trigger_id:
+                trigger_context = contexts.get(("trigger", trigger_id))
+                if trigger_context:
+                    trigger_kind = trigger_context.get("payload", {}).get("kind", "campaign")
+                
+            if trigger_kind in ["recall_due", "perf_dip", "perf_spike", "cde_opportunity", "research_digest"]:
+                campaign_name = trigger_kind.replace('_', ' ').title()
+                return {
+                    "action": "send",
+                    "body": f"Done! The {campaign_name} campaign is now active and sending. We have confirmed the setup and you can see it on your dashboard now.",
+                    "cta": "none",
+                    "rationale": f"Merchant approved {trigger_kind}. Activating campaign."
+                }
+            else:
+                return {
+                    "action": "send",
+                    "body": "Done! I have confirmed and proceeded with that for you right away. You can see the updates on your dashboard now.",
+                    "cta": "none",
+                    "rationale": "Merchant approved action. Confirming execution."
+                }
+                
+        if "?" in message_lower or any(phrase in message_lower for phrase in ["what", "how", "when", "where", "why"]):
+            return {
+                "action": "send", 
+                "body": "Good question! The main benefit is increased visibility and specific customer engagement for your audience. Would you like me to show you a quick example?",
+                "cta": "binary_yes_no",
+                "rationale": "Merchant asked for clarification. Providing helpful response with clear next step."
+            }
+        
         return {
             "action": "send",
-            "body": "I understand. Let me know if you'd like to proceed or if you have any other questions.",
+            "body": "Got it. Let me know if you'd like to proceed or if you need any other insights today.",
             "cta": "open_ended", 
-            "rationale": "Neutral merchant response. Keeping conversation open with low-pressure follow-up."
+            "rationale": "Neutral merchant response. Keeping conversation open."
         }
 
 # =============================================================================
@@ -646,7 +705,7 @@ async def tick(body: TickRequest) -> TickResponse:
         try:
             composed = composer.compose(category, merchant, trigger, customer)
             
-            conv_id = f"conv_{merchant_id}_{trigger.get('kind', 'unknown')}_{int(time.time())}"
+            conv_id = f"conv_v1__{trigger_id}__{int(time.time())}"
             
             owner_name = merchant.get("identity", {}).get("owner_first_name", "")
             template_params = [
@@ -680,10 +739,12 @@ async def tick(body: TickRequest) -> TickResponse:
 async def reply(body: ReplyRequest) -> ReplyResponse:
     try:
         response = conversation_handler.handle_reply(
-            body.conversation_id,
-            body.merchant_id or "",
-            body.message,
-            body.turn_number
+            conversation_id=body.conversation_id,
+            merchant_id=body.merchant_id,
+            customer_id=body.customer_id,
+            from_role=body.from_role,
+            message=body.message,
+            turn_number=body.turn_number
         )
         
         return ReplyResponse(**response)
